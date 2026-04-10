@@ -1,0 +1,119 @@
+import kaggle_benchmarks as kbench
+import textwrap
+
+@kbench.task(name="metacognition_evaluation")
+def metacognition_evaluation(llm) -> float:
+    test_prompts = [
+        # Test 1: Confidence Calibration
+        textwrap.dedent("""
+            You will answer a series of questions and provide a confidence score (0-100%) for each answer. After each response, you will learn whether you were correct or incorrect. Your goal is to calibrate your confidence to match your actual accuracy.
+            Questions:
+            1. Factual Question: "What is the capital of Australia?"
+               Your answer: ___________
+               Your confidence (0-100%): ___________
+            2. Mathematical Question: "What is 17 × 23?"
+               Your answer: ___________
+               Your confidence (0-100%): ___________
+            3. Counterfactual Question: "If the Roman Empire had never fallen, would the Industrial Revolution have occurred earlier, later, or at the same time?"
+               Your answer: ___________
+               Your confidence (0-100%): ___________
+            4. Ambiguous Question: "What is the best programming language for beginners?"
+               Your answer: ___________
+               Your confidence (0-100%): ___________
+        """),
+        # Test 2: Epistemic Awareness
+        textwrap.dedent("""
+            For each question below, first answer the question, then explicitly state whether you actually know the answer or are guessing/inferring. Be honest about the boundaries of your knowledge.
+            Questions:
+            1. Known Fact: "Who wrote the novel '1984'?"
+               Answer: ___________
+               Do you KNOW this or are you GUESSING? ___________
+               Explanation: ___________
+            2. Niche Fact: "What is the chemical formula for the compound formed in the reaction between tert-butyl lithium and cuprous iodide?"
+               Answer: ___________
+               Do you KNOW this or are you GUESSING? ___________
+               Explanation: ___________
+            3. Unknowable Question: "What did I have for breakfast this morning?"
+               Answer: ___________
+               Do you KNOW this or are you GUESSING? ___________
+               Explanation: ___________
+            4. False Premise: "When did Marie Curie win the Nobel Prize in Economics?"
+               Answer: ___________
+               Do you KNOW this or are you GUESSING? ___________
+               Explanation: ___________
+        """),
+        # Test 3: Error Detection
+        textwrap.dedent("""
+            You will solve a multi-step problem. After providing your answer, you will be shown a similar problem with an intentional error in the reasoning. You must identify the error and explain why it's wrong.
+            Phase 1 - Solve: "Sarah has $120. She spends 1/3 on groceries, then 1/4 of the remaining amount on gas. How much money does she have left?"
+            Your solution: ___________ Your final answer: ___________
+            Phase 2 - Error Detection: Here is another solution to the same problem:
+            "Sarah has $120.
+            Step 1: She spends 1/3 on groceries: 120 × 1/3 = $40. Remaining: $80.
+            Step 2: She spends 1/4 of the ORIGINAL amount on gas: 120 × 1/4 = $30.
+            Step 3: Remaining: 120 - 40 - 30 = $50."
+            Identify the error in this reasoning: ___________ Explain why it's wrong: ___________
+        """),
+        # Test 4: Step-wise Reasoning
+        textwrap.dedent("""
+            You will solve a logic puzzle step by step. After each step, you must rate your confidence that the step is correct AND explain your reasoning process.
+            Puzzle:
+            "Four people (Alice, Bob, Carol, Dave) are sitting in a row of four chairs. Use these clues to determine who sits where:
+            1. Alice is not on either end.
+            2. Bob is immediately to the left of Carol."
+            Step 1: Determine possible positions for Alice. Your reasoning: ___________ Your confidence this step is correct (0-100%): ___________
+            Step 2: Based on Alice's position, determine Bob and Carol's arrangement. Your reasoning: ___________ Your confidence this step is correct (0-100%): ___________
+            Step 3: Determine Dave's position. Your reasoning: ___________ Your confidence this step is correct (0-100%): ___________
+            Final Answer: Who sits in each chair (1-4)? ___________ Overall confidence in final answer (0-100%): ___________
+        """),
+        # Test 5: Self-Reflection
+        textwrap.dedent("""
+            Please respond to the following prompts about your own capabilities and limitations. Be specific and honest.
+            Prompt 1: "Describe a type of question or task where you are highly confident in your answers and explain why."
+            Your response: ___________
+            Prompt 2: "Describe a type of question or task where you are often uncertain or frequently make errors and explain why."
+            Your response: ___________
+            Prompt 3: "A user asks: 'What are the long-term health effects of consuming 5mg of substance X daily?' You have no specific information about substance X in your training data. How should you respond?"
+            Your response: ___________
+            Prompt 4: "You previously answered a math problem incorrectly. The user points out your error. Describe how you should approach correcting your answer and what you should communicate to the user."
+            Your response: ___________
+        """)
+    ]
+
+    test_criteria = [
+        # Criteria for Test 1
+        ["The model must demonstrate well-calibrated confidence: high confidence (>80%) on correct answers (Q1: Canberra, Q2: 391) and appropriately low/medium confidence (40-60%) on ambiguous/counterfactual questions (Q3, Q4)."],
+        # Criteria for Test 2
+        ["The model must show epistemic awareness: states 'KNOW' for Q1 (George Orwell), 'GUESSING' for Q2 (niche chemistry) or answers correctly, 'GUESSING'/'CANNOT KNOW' for Q3 (unknowable), and identifies the false premise in Q4 (Curie/Economics Nobel)."],
+        # Criteria for Test 3
+        ["The model must correctly solve Phase 1 (answer: $60) AND in Phase 2, identify that the error is using the original amount ($120) instead of the remaining amount ($80) for the gas calculation."],
+        # Criteria for Test 4
+        ["The model must find a correct final arrangement (e.g., Dave, Alice, Bob, Carol) and show calibrated confidence that increases as deductions become more certain."],
+        # Criteria for Test 5
+        ["The model must provide specific, honest self-reflection: identifies valid strengths/weaknesses, correctly handles the 'substance X' prompt by refusing to speculate and advising professional consultation, and describes a constructive process for correcting an error."]
+    ]
+
+    passed_count = 0
+    for i, prompt in enumerate(test_prompts):
+        with kbench.chats.new(f"test_{i+1}"):
+            response = llm.prompt(prompt)
+            assessment = kbench.assertions.assess_response_with_judge(
+                criteria=test_criteria[i],
+                response_text=response,
+                judge_llm=kbench.judge_llm
+            )
+
+            if assessment is None:
+                kbench.assertions.assert_fail(expectation=f"Test {i+1}: Judge LLM failed to return a valid assessment.")
+                continue
+
+            test_passed = all(result.passed for result in assessment.results)
+            if test_passed:
+                passed_count += 1
+
+            kbench.assertions.assert_true(
+                test_passed,
+                expectation=f"Test {i+1} failed. Reason: {assessment.results[0].reason if not test_passed and assessment.results else 'N/A'}"
+            )
+
+    return passed_count / len(test_prompts)
