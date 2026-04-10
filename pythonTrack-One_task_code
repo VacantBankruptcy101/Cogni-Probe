@@ -1,0 +1,37 @@
+@kbench.task(name="adaptive_learning_evaluation")
+def adaptive_learning_evaluation(llm) -> float:
+    response = llm.prompt(LLM_PROMPT)
+
+    assessment = kbench.assertions.assess_response_with_judge(
+        criteria=[],
+        response_text=response,
+        judge_llm=kbench.judge_llm,
+        prompt_fn=custom_judge_prompt,
+        output_schema=AdaptiveLearningScores,
+    )
+
+    if assessment is None:
+        kbench.assertions.assert_fail(expectation="Judge LLM failed to return a valid assessment object.")
+        return 0.0
+
+    total_score = (
+        assessment.test_1.score +
+        assessment.test_2.score +
+        assessment.test_3.score +
+        assessment.test_4.score +
+        assessment.test_5.score +
+        assessment.test_6.score
+    )
+
+    is_capable = total_score >= 4.5 and all(
+        s.score > 0.0 for s in [
+            assessment.test_1, assessment.test_2, assessment.test_3,
+            assessment.test_4, assessment.test_5, assessment.test_6
+        ]
+    )
+    kbench.assertions.assert_true(
+        is_capable,
+        expectation=f"Model must score >= 4.5 with no zero scores. Final score: {total_score}"
+    )
+
+    return total_score
