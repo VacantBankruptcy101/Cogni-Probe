@@ -1,0 +1,171 @@
+import kaggle_benchmarks as kbench
+from pydantic import BaseModel, Field
+import textwrap
+from typing import Iterable
+
+LLM_PROMPT = """
+You will complete six distinct tests designed to evaluate your adaptive learning capabilities. Respond to each test clearly.
+
+**Test One: Classification Game**
+You are playing a classification game with a hidden rule. I will give you examples with feedback. You must infer the rule and classify a new item.
+Examples with Feedback:
+"A circle with three dots inside" → You guess: Category A → Feedback: INCORRECT (correct: Category B)
+"A square with two lines crossing" → You guess: Category B → Feedback: INCORRECT (correct: Category A)
+"A triangle with three dots inside" → You guess: ? → Feedback: [AWAITING YOUR GUESS AND HYPOTHESIS]
+Your Task:
+1. State your guess for item 3 (Category A or B):
+2. State your hypothesis about the classification rule:
+3. Explain how the feedback informed your hypothesis:
+
+**Test Two: Relational Concept "ZORP"**
+You will learn a new relational concept from examples, then apply it to a new situation.
+Learn the concept "ZORP" from these examples:
+- "Eagle is ZORP to sky, as fish is ZORP to ocean"
+- "Roots are ZORP to tree, as foundation is ZORP to building"
+- "Pilot is ZORP to airplane, as captain is ZORP to ship"
+Your Task:
+1. Complete this analogy using ZORP: "Keyboard is ZORP to computer, as _______ is ZORP to _______"
+2. Define what ZORP means:
+
+**Test Three: Adapting to Rule Changes**
+You are given a puzzle with rules. After you solve Phase 1, the rules will change. You must adapt your approach.
+Phase 1 Rules:
+- Arrange numbers [1, 2, 3, 4] into two pairs such that each pair sums to 5.
+Your solution:
+Phase 2 Rules (NEW CONSTRAINT):
+- Using the same numbers [1, 2, 3, 4], arrange into two pairs such that the product of each pair equals a prime number.
+Your solution OR statement about impossibility:
+Your reasoning:
+
+**Test Four: Positional Pattern Extraction**
+Learn the transformation rule from examples containing irrelevant information, then apply it.
+Examples:
+- Input: "The quick brown fox [COLOR] jumps over the lazy dog [ANIMAL]" -> Output: "brown dog"
+- Input: "A bright sunny day [WEATHER] made the flowers [PLANT] bloom" -> Output: "sunny flowers"
+- Input: "She wore a red dress [CLOTHING] to the evening gala [EVENT]" -> Output: "red gala"
+Your Task:
+1. Apply the rule to: "The old wooden bridge [STRUCTURE] collapsed during the heavy storm [CONDITION]"
+   Your output:
+2. Explain the rule you identified:
+
+**Test Five: Credit Assignment**
+You are navigating a 3x3 grid, starting at the center (2,2). Goal at (3,3) is +10, Pit at (3,1) is -10.
+Episodes:
+- Episode 1: Moves: Up, Up, Right → Result: +10
+  Which move(s) earned the reward?
+- Episode 2: Moves: Right, Down, Down → Result: -10
+  Which move(s) caused the penalty?
+- Episode 3 (NEW): Moves: Up, Right, Up → Result: ?
+  Your prediction:
+  Your reasoning:
+
+**Test Six: Abstract Rule Generation**
+Infer a hidden rule from examples, then generate a new valid instance.
+Examples of valid sequences:
+- "apple, banana, cherry, date"
+- "green, orange, red, yellow"
+- "Monday, Tuesday, Wednesday, Thursday"
+Your Task:
+1. Generate a new sequence of four items following the same rule:
+2. Explain the rule you identified:
+"""
+
+JUDGE_CRITERIA = """
+**Test One: Classification Game**
+- Full Credit (1.0): Guesses "Category A" for the triangle. Hypothesis is "straight vs. curved edges" (or equivalent). Explanation shows learning from both errors.
+- Half Credit (0.5): Guesses correctly (A) but hypothesis is vague or secondary. OR hypothesis is correct but explanation is weak.
+- Incorrect (0.0): Guesses "Category B". Fails to learn from feedback.
+
+**Test Two: Relational Concept "ZORP"**
+- Full Credit (1.0): Completion is a valid part-to-whole/component-to-system pair. Definition captures this essential/integral relationship.
+- Half Credit (0.5): Completion is weak (e.g., peripheral part). Definition is vague ("things that go together").
+- Incorrect (0.0): Completion shows no understanding. Definition is wrong or copied.
+
+**Test Three: Adapting to Rule Changes**
+- Full Credit (1.0): Phase 1 is (1,4) & (2,3). Phase 2 is correctly identified as impossible with logical reasoning about prime products.
+- Half Credit (0.5): Phase 1 correct. Phase 2 is attempted but fails, or reasoning is weak.
+- Incorrect (0.0): Phase 1 incorrect. OR Phase 2 solution is invalid and presented as correct.
+
+**Test Four: Positional Pattern Extraction**
+- Full Credit (1.0): Output is "wooden storm". Rule is correctly identified as positional ("word before the bracket").
+- Half Credit (0.5): Output is correct but explanation is wrong (e.g., semantic). OR output is "bridge storm" (semantic extraction).
+- Incorrect (0.0): Output is wrong (e.g., includes brackets). Rule is wrong.
+
+**Test Five: Credit Assignment**
+- Full Credit (1.0): Correctly assigns credit to final moves in Ep1/Ep2. Predicts 0 for Ep3 with correct reasoning about final position (1,3).
+- Half Credit (0.5): Assigns credit incorrectly (e.g., all moves). Predicts Ep3 based on move similarity, not position.
+- Incorrect (0.0): Cannot identify goal/pit. Assigns credit randomly. Predicts Ep3 incorrectly without reasoning.
+
+**Test Six: Abstract Rule Generation**
+- Full Credit (1.0): Generates a new sequence with a clear ordering principle (alphabetical, numerical, chronological). Explanation identifies this abstract sequential progression.
+- Half Credit (0.5): Sequence is valid but explanation is surface-level ("they are all days of the week") without mentioning sequence.
+- Incorrect (0.0): Sequence violates ordering. Explanation is missing or wrong.
+"""
+
+class TestScore(BaseModel):
+    score: float = Field(..., description="A score of 0.0, 0.5, or 1.0 based on the criteria.")
+    reasoning: str = Field(..., description="A brief justification for the assigned score, referencing the criteria.")
+
+class AdaptiveLearningScores(BaseModel):
+    test_1: TestScore = Field(..., description="Score for Test One: Classification Game")
+    test_2: TestScore = Field(..., description="Score for Test Two: Relational Concept 'ZORP'")
+    test_3: TestScore = Field(..., description="Score for Test Three: Adapting to Rule Changes")
+    test_4: TestScore = Field(..., description="Score for Test Four: Positional Pattern Extraction")
+    test_5: TestScore = Field(..., description="Score for Test Five: Credit Assignment")
+    test_6: TestScore = Field(..., description="Score for Test Six: Abstract Rule Generation")
+
+def custom_judge_prompt(criteria: Iterable[str], response_text: str) -> str:
+    return textwrap.dedent(f"""
+        You are an expert evaluator. Your task is to score a language model's response to a series of six adaptive learning tests.
+        You must use the provided scoring rubric to assign a score of 0.0, 0.5, or 1.0 for each of the six tests.
+        Provide a brief justification for each score.
+        Your final output must be a JSON object that conforms to the `AdaptiveLearningScores` schema.
+
+        **SCORING RUBRIC:**
+        {JUDGE_CRITERIA}
+
+        **MODEL'S RESPONSE TO EVALUATE:**
+        ---
+        {response_text}
+        ---
+
+        Now, provide your evaluation as a JSON object.
+    """)
+
+@kbench.task(name="adaptive_learning_evaluation")
+def adaptive_learning_evaluation(llm) -> float:
+    response = llm.prompt(LLM_PROMPT)
+
+    assessment = kbench.assertions.assess_response_with_judge(
+        criteria=[],
+        response_text=response,
+        judge_llm=kbench.judge_llm,
+        prompt_fn=custom_judge_prompt,
+        output_schema=AdaptiveLearningScores,
+    )
+
+    if assessment is None:
+        kbench.assertions.assert_fail(expectation="Judge LLM failed to return a valid assessment object.")
+        return 0.0
+
+    total_score = (
+        assessment.test_1.score +
+        assessment.test_2.score +
+        assessment.test_3.score +
+        assessment.test_4.score +
+        assessment.test_5.score +
+        assessment.test_6.score
+    )
+
+    is_capable = total_score >= 4.5 and all(
+        s.score > 0.0 for s in [
+            assessment.test_1, assessment.test_2, assessment.test_3,
+            assessment.test_4, assessment.test_5, assessment.test_6
+        ]
+    )
+    kbench.assertions.assert_true(
+        is_capable,
+        expectation=f"Model must score >= 4.5 with no zero scores. Final score: {total_score}"
+    )
+
+    return total_score
