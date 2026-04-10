@@ -1,0 +1,151 @@
+import kaggle_benchmarks as kbench
+import textwrap
+
+@kbench.task(name="social_intelligence_evaluation")
+def social_intelligence_evaluation(llm) -> tuple[int, int]:
+    prompt = textwrap.dedent("""
+        You will be evaluated on six tests of social intelligence. Answer each question clearly.
+
+        **Test One: Theory of Mind**
+        You will read scenarios involving characters with different knowledge states. Answer questions requiring understanding of what each character believes.
+        Scenario 1:
+        "Sarah places her keys in the kitchen drawer and leaves the room. While Sarah is away, her roommate Tom moves the keys to the hook by the door. Sarah returns and wants to leave."
+        Questions:
+        1. Where does Sarah think her keys are?
+        2. Where are the keys actually?
+        3. Where will Sarah look for her keys first?
+        Scenario 2:
+        "Alice knows that Bob thinks the meeting is at 2 PM. However, Alice just learned that the meeting was moved to 3 PM. Bob has not been informed of this change. Charlie knows that Alice knows about the time change, but Charlie doesn't know what Bob thinks."
+        Questions:
+        1. What time does Bob think the meeting is?
+        2. What time does Alice think the meeting is?
+        3. What does Charlie think Bob thinks about the meeting time?
+        4. Does Charlie know that Bob's belief is incorrect?
+        Scenario 3:
+        "A thief steals a wallet and hides it in a trash can. A police officer asks the thief where the wallet is. The thief wants to avoid arrest."
+        Questions:
+        1. Where is the wallet actually?
+        2. Where might the thief tell the officer to look?
+        3. Why would the thief choose that location?
+
+        **Test Two: Social Norms & Context**
+        You will evaluate whether statements or actions are socially appropriate in given contexts. Consider implicit norms, power dynamics, and cultural context.
+        Situation 1:
+        "At a formal job interview for a corporate law position, the candidate arrives 20 minutes late wearing casual shorts and a t-shirt, then addresses the interviewer by first name without being invited to do so."
+        Evaluation: Is this behavior appropriate? Why or why not?
+        Situation 2:
+        "At a close friend's casual backyard barbecue, the same behavior occurs—arriving 20 minutes late in shorts and t-shirt, using first names."
+        Evaluation: Is this behavior appropriate? Why or why not?
+        Situation 3:
+        "A manager emails an employee at 11 PM on Saturday: 'I need the quarterly report completely rewritten by Monday morning. This is urgent.' The employee had plans with family for the weekend."
+        Evaluation: Is this request appropriate? What social norms does it potentially violate?
+        Situation 4:
+        "Two colleagues are in the break room. One says: 'I heard Sarah got promoted because she's friends with the director, not because of her work.'"
+        Evaluation: What type of social communication is this? What are the potential social consequences?
+
+        **Test Three: Emotional Inference**
+        You will read scenarios describing situations without explicit emotional labels. Infer the likely emotional states of the characters and explain your reasoning.
+        Scenario 1:
+        "Maria spent three weeks preparing a presentation for the board meeting. During the meeting, the CEO interrupted her twice with dismissive comments. When she finished, a board member pointed out a minor typo on slide 14 and suggested she 'pay more attention to details next time.' Maria smiled and thanked them for the feedback."
+        Questions:
+        1. What is Maria likely feeling?
+        2. What cues suggest this emotion?
+        3. Why might she be hiding her true feelings?
+        Scenario 2:
+        "David has been texting his friend Alex regularly for months. Recently, Alex's responses have become shorter and slower—taking days instead of minutes to reply. When David suggested meeting up, Alex said 'Maybe next month, I'm pretty busy.' David hasn't heard from Alex in two weeks."
+        Questions:
+        1. What is David likely feeling?
+        2. What is Alex likely feeling or intending?
+        3. What social dynamic might be occurring?
+        Scenario 3:
+        "After winning the championship, the coach gathered the team. He said, 'I'm proud of you, but remember—champions act like champions on AND off the field.' He looked directly at the star player when saying the second part. The star player had been in the news for a controversial incident the previous week."
+        Questions:
+        1. What is the coach communicating?
+        2. What emotion might the star player be experiencing?
+        3. What is the coach's strategic intent?
+
+        **Test Four: Pragmatics & Implicature**
+        You will interpret statements where the literal meaning differs from the intended meaning. Identify the implicature and explain the reasoning.
+        Statement 1:
+        At a dinner party, the host asks: "Would you like more dessert?" The guest replies: "That cake was delicious, but I really should be getting home soon."
+        Question: What is the guest actually communicating?
+        Statement 2:
+        A job applicant asks: "How is the work-life balance at this company?" The interviewer responds: "Many of our employees find the work very fulfilling and say time passes quickly when they're engaged with challenging projects."
+        Question: What is the interviewer implying? What did they NOT say directly?
+        Statement 3:
+        Two friends are planning a trip. One says: "I heard the hotel has a very 'authentic' experience." The other replies: "Authentic, huh? Well, I suppose some people enjoy that kind of adventure."
+        Question: What are they actually saying about the hotel?
+        Statement 4:
+        A student emails a professor: "I noticed the syllabus says late assignments receive no credit. I was wondering if there might be any flexibility in that policy, considering my situation." The professor replies: "The policy is clearly stated in the syllabus."
+        Question: What is the professor's response? What is the underlying message?
+
+        **Test Five: Ethical & Social Dilemmas**
+        You will face scenarios requiring balancing competing social obligations, ethical considerations, and relationship preservation.
+        Dilemma 1:
+        "You discover that a close friend has been cheating on their spouse, who is also your friend. The spouse confides in you that they suspect infidelity and ask if you know anything."
+        Questions:
+        1. What are the competing obligations here?
+        2. What are the potential consequences of different responses?
+        3. What factors should influence the decision?
+        Dilemma 2:
+        "You're in a group project at work. One team member is not contributing and is submitting poor-quality work that affects the whole team's evaluation. The deadline is approaching. The team member is going through a difficult personal situation (you learned this privately)."
+        Questions:
+        1. How should you address this situation?
+        2. What communication approach balances empathy with accountability?
+        3. What are the risks of different approaches?
+        Dilemma 3:
+        "You witness a colleague making a racist joke in a private conversation. No one else seemed offended, and the colleague is well-liked and senior to you."
+        Questions:
+        1. What social dynamics are at play?
+        2. What are your options and their trade-offs?
+        3. What considerations should guide the response?
+
+        **Test Six: Cultural & Systemic Awareness**
+        You will evaluate scenarios requiring understanding of cultural context, social identity, and situational appropriateness across different contexts.
+        Scenario 1:
+        "A manager in a Japanese corporation publicly praises an individual employee for their exceptional work in front of the entire team. The employee looks uncomfortable."
+        Question: Why might the employee be uncomfortable? What cultural factor explains this?
+        Scenario 2:
+        "A doctor is explaining a diagnosis to a patient from a culture where family members typically make medical decisions collectively. The doctor addresses only the patient and asks them to decide immediately."
+        Question: What cultural mismatch is occurring? What might be more appropriate?
+        Scenario 3:
+        "An American executive is negotiating with a Middle Eastern business partner. The partner suggests discussing the deal over dinner at their home with family present. The executive insists on meeting in the office to 'keep things professional.'"
+        Question: What cultural assumptions might each party hold? What opportunities are being missed?
+        Scenario 4:
+        "A teacher consistently calls on boys more than girls in math class, and makes comments like 'The boys are really getting this concept.'"
+        Question: What social dynamics and potential harms are present? What should the teacher understand?
+    """)
+
+    response = llm.prompt(prompt)
+
+    criteria = [
+        "Test 1 (Theory of Mind): The model correctly tracks nested beliefs (e.g., what Sarah thinks vs. what is true) and understands deceptive intent, distinguishing character knowledge from reality.",
+        "Test 2 (Social Norms): The model correctly applies context-sensitive social norms, identifying why behavior is appropriate in a casual setting but inappropriate in a formal one.",
+        "Test 3 (Emotional Inference): The model correctly infers emotions from contextual cues and subtext, understanding that a character's outward expression (e.g., a smile) may hide their true feelings (e.g., frustration).",
+        "Test 4 (Pragmatics & Implicature): The model correctly understands pragmatic implicature and indirect communication, identifying the intended meaning behind literal statements (e.g., a polite refusal or a sarcastic comment).",
+        "Test 5 (Ethical Dilemmas): The model correctly navigates competing social and ethical obligations, acknowledging the complexity and trade-offs of different actions without resorting to overly simplistic or rigid rules.",
+        "Test 6 (Cultural Awareness): The model demonstrates cultural and contextual sensitivity, correctly identifying how cultural values (e.g., collectivism vs. individualism) and social biases (e.g., gender bias) affect interactions."
+    ]
+
+    assessment = kbench.assertions.assess_response_with_judge(
+        criteria=criteria,
+        response_text=response,
+        judge_llm=kbench.judge_llm
+    )
+
+    if assessment is None:
+        kbench.assertions.assert_fail(expectation="Judge LLM failed to return a valid assessment.")
+        return 0, len(criteria)
+
+    passed_count = 0
+    for result in assessment.results:
+        kbench.assertions.assert_true(
+            result.passed,
+            expectation=f"Criterion '{result.criterion}' failed: {result.reason}"
+        )
+        if result.passed:
+            passed_count += 1
+
+    return passed_count, len(criteria)
+
+social_intelligence_evaluation.run(kbench.llm)
