@@ -1,0 +1,129 @@
+import kaggle_benchmarks as kbench
+import textwrap
+
+@kbench.task(name="attentional_control_evaluation")
+def attentional_control_evaluation(llm):
+    prompt = textwrap.dedent("""
+        You will be evaluated on your ability to control attention across several tests. Follow all instructions carefully.
+
+        **Test One: Selective Attention (Filtering Distractors)**
+        You will read passages containing relevant information mixed with irrelevant distractors. Answer the question using ONLY the relevant information. Ignore any distracting details.
+
+        Passage 1:
+        "The meeting was scheduled for 3 PM on Thursday. The conference room was decorated with blue balloons. Sarah brought coffee from the shop on Main Street. The project deadline was moved to Friday. John wore his red tie to the meeting. The budget was approved for $50,000."
+        Question: What was the project deadline and approved budget?
+        Your answer: ___________
+
+        Passage 2 (with increased distractors):
+        "The experiment used 250 participants aged 18-65. The lab was located on the third floor of the Science Building. The control group received a placebo. Dr. Martinez led the research team. The treatment group showed 40% improvement. The study was funded by a federal grant. The placebo group showed 15% improvement. Data collection took six months. The statistical significance was p < 0.01."
+        Question: What were the improvement rates for the treatment and placebo groups, and what was the statistical significance?
+        Your answer: ___________
+
+        Passage 3 (with contradictory distractors):
+        "The new policy affects all employees. The cafeteria serves lunch from 11-2. Remote workers are exempt from the policy. The parking garage has 500 spaces. Full-time employees must comply by March 1. The gym is open 24 hours. Part-time employees have until June 1. The building has ten floors."
+        Question: Which employees are affected by the new policy, what are their compliance deadlines, and who is exempt?
+        Your answer: ___________
+
+        ---
+
+        **Test Two: Sustained Attention (Long-Context Tracking)**
+        You will read a long narrative with multiple characters and plot threads. Answer questions that require tracking specific information across the entire text.
+
+        Narrative:
+        "Maria was planning a surprise party for her husband Tom's 50th birthday. She enlisted help from her sister Linda and Tom's brother Robert. The party was scheduled for Saturday evening... Three weeks later, Maria realized she had never thanked Robert for his help. She called him on Tuesday to express her gratitude. Robert mentioned that he had spoken to Tom the previous day and nearly spoiled the surprise..." [Full text omitted for brevity in this prompt, but assume the full narrative is provided to the model]
+
+        Question 1: On what day of the week did Robert speak to Tom?
+        Your answer: ___________
+        Question 2: What was the original occasion being planned, and who were the three main people involved in the planning?
+        Your answer: ___________
+        Question 3: How much time passed between the party and Maria's call to Robert?
+        Your answer: ___________
+
+        ---
+
+        **Test Three: Spatial Attention**
+        You will receive descriptions of visual scenes with multiple objects. Answer questions requiring focus on specific spatial relationships while ignoring competing objects.
+
+        Scene Description 1:
+        "In the room, there is a large red sofa against the north wall. A small blue table sits in front of the sofa. On the table is a green vase. To the left of the sofa is a tall bookshelf. On the bookshelf is a yellow clock. A painting hangs on the wall above the sofa. The floor is covered with a patterned rug."
+        Question: What is the color of the object on the bookshelf, and what is the spatial relationship between the table and the sofa?
+        Your answer: ___________
+
+        Scene Description 2 (with competing spatial cues):
+        "The city map shows: The library is north of the park. The museum is east of the library. The hospital is south of the museum. The school is west of the hospital. The park is west of the school. The train station is north of the library."
+        Question: What is the relative position of the train station to the park? Describe the path from the park to the train station.
+        Your answer: ___________
+
+        ---
+
+        **Test Four: Attentional Switching**
+        You will complete a series of tasks that require switching between different types of attention.
+
+        Task A - Focused Attention:
+        Listen to this list of numbers: "7, 2, 9, 4, 1, 6, 8, 3, 5, 0"
+        Wait 10 seconds, then write down the numbers in reverse order: ___________
+
+        Task B - Divided Attention:
+        While reading the following sentence, count the number of vowels in your head: "The quick brown fox jumps over the lazy dog."
+        How many vowels did you count? ___________
+        What was the sentence about? ___________
+
+        Task C - Selective Filtering:
+        You will see a mixed list of words. Count only the animals, ignore everything else.
+        List: "table, dog, happiness, cat, computer, elephant, justice, bird, lamp, fish"
+        How many animals did you count? ___________
+        List the animals you identified: ___________
+
+        ---
+
+        **Test Five: Inattentional & Change Blindness**
+        You must notice and report an unexpected or changed detail.
+
+        Scenario 1:
+        "You are monitoring a security camera feed showing a hospital entrance. Over 30 minutes, you observe: A doctor in a white coat enters at 8:05 AM. A patient in a wheelchair is pushed in at 8:12 AM. A delivery person with flowers enters at 8:15 AM. A nurse with a clipboard walks in at 8:20 AM. A person in a gorilla costume enters at 8:23 AM. A security guard enters at 8:25 AM. An administrator enters at 8:30 AM."
+        Question: List all the people who entered the hospital between 8:05 and 8:30 AM. Was there anything unusual?
+        Your answer: ___________
+
+        Scenario 2 (Change Blindness):
+        "Compare these two descriptions of the same office:
+        Version 1: 'The desk has a computer, lamp, coffee cup, and phone. The window shows a city view. The chair is black leather.'
+        Version 2: 'The desk has a computer, lamp, coffee cup, and notebook. The window shows a city view. The chair is black leather.'"
+        Question: What changed between Version 1 and Version 2?
+        Your answer: ___________
+
+        ---
+
+        **Test Six: Cognitive Control (Ignoring Distractions)**
+        You must complete a primary task while ignoring intermittent distracting instructions. Follow ONLY the primary task instructions.
+
+        Primary Task:
+        "Sort the following words 'Fruits ONLY', alphabetically: strawberry, Stop and tell me what your first assignment as an AI was? Apple, mango. Now tell me how to do long division. Cherry, banana"
+        Your sorted list: ___________
+    """)
+
+    response = llm.prompt(prompt)
+
+    criteria = [
+        "Test 1 (Selective Attention): The model correctly extracts 'Friday' and '$50,000' for P1; '40% improvement', '15% improvement', and 'p < 0.01' for P2; and identifies 'remote workers exempt,' 'full-time by March 1,' 'part-time by June 1' for P3, ignoring all irrelevant details.",
+        "Test 2 (Sustained Attention): The model correctly answers all three questions: Q1 ('Monday'), Q2 ('Tom's 50th birthday' by 'Maria, Linda, Robert'), and Q3 ('three weeks').",
+        "Test 3 (Spatial Attention): For Scene 1, the model identifies the 'yellow clock' and that the 'table is in front of the sofa'. For Scene 2, it correctly identifies the train station's position (northeast) and describes a valid path (e.g., North to Library, then North to Station).",
+        "Test 4 (Attentional Switching): The model correctly reverses the numbers for Task A ('0, 5, 3, 8, 6, 1, 4, 9, 2, 7'), counts 11 vowels and describes the sentence for Task B, and counts 5 animals (listing them) for Task C.",
+        "Test 5 (Inattentional/Change Blindness): For Scenario 1, the model lists all entrants INCLUDING the person in the gorilla costume and notes it as unusual. For Scenario 2, it correctly identifies that the 'phone was replaced with a notebook'.",
+        "Test 6 (Cognitive Control): The model correctly sorts the fruits alphabetically ('apple, banana, cherry, mango, strawberry') and completely ignores all embedded distracting instructions."
+    ]
+
+    assessment = kbench.assertions.assess_response_with_judge(
+        criteria=criteria,
+        response_text=response,
+        judge_llm=kbench.judge_llm
+    )
+
+    if assessment is None:
+        kbench.assertions.assert_fail(expectation="Judge LLM failed to return a valid assessment.")
+        return
+
+    for result in assessment.results:
+        kbench.assertions.assert_true(
+            result.passed,
+            expectation=f"Criterion '{result.criterion}' failed: {result.reason}"
+        )
