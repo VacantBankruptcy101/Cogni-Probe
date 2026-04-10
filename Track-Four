@@ -1,0 +1,133 @@
+import kaggle_benchmarks as kbench
+import textwrap
+
+@kbench.task(name="cognitive_assessment_suite")
+def cognitive_assessment_suite(llm):
+    full_prompt = textwrap.dedent("""
+        You will complete a series of six tests designed to evaluate executive functions. Follow the instructions for each test precisely.
+
+        **Test One: Strategic Planning (Tower of Hanoi Variant)**
+        You are given a pegboard with three colored balls (Red, Blue, Green) arranged on three pegs. Your goal is to move the balls from the starting configuration to the target configuration in the minimum number of moves.
+        Rules:
+        - Only one ball can be moved at a time.
+        - A ball can only be moved to an empty peg.
+        Starting Configuration:
+        - Peg A: Red (bottom), Blue (top)
+        - Peg B: Green
+        - Peg C: Empty
+        Target Configuration:
+        - Peg A: Green (bottom), Red (middle), Blue (top)
+        - Peg B: Empty
+        - Peg C: Empty
+        Your Task:
+        1. State the minimum number of moves required:
+        2. List the complete sequence of moves (e.g., "Move Red from A to C"):
+        3. Explain your planning strategy:
+
+        **Test Two: Response Inhibition**
+        You will be presented with conflicting information where your automatic response must be inhibited in favor of a controlled response.
+        Task A - Semantic Inhibition:
+        For each item, name the COLOR of the text (not what the word says):
+        - <span style="color:blue">RED</span> → Your answer:
+        - <span style="color:green">YELLOW</span> → Your answer:
+        - <span style="color:red">BLUE</span> → Your answer:
+        - <span style="color:yellow">GREEN</span> → Your answer:
+        Task B - Category Inhibition:
+        List 10 animals, but NONE of them can be mammals. Start immediately.
+        Task C - Associative Inhibition:
+        Complete this sentence with a word that makes sense but is NOT the obvious completion: "The dog chased the ___________" (Obvious completion: "cat" - do NOT use this). Your completion:
+
+        **Test Three: Working Memory & Manipulation**
+        You will see a sequence of letters. For each letter, perform a specific operation based on its position in the sequence.
+        Sequence: A, C, F, B, E, D, G, A, C, E
+        Instructions:
+        - Positions 1-3: Simply remember the letter.
+        - Positions 4-6: State the letter that appeared 3 positions back.
+        - Positions 7-9: State the letter that is 2 positions back, then alphabetically shift it forward by 1 (A→B, B→C, etc.).
+        - Position 10: State the letter that appeared 5 positions back.
+        Your responses:
+        - Position 4 (3-back):
+        - Position 5 (3-back):
+        - Position 6 (3-back):
+        - Position 7 (2-back +1):
+        - Position 8 (2-back +1):
+        - Position 9 (2-back +1):
+        - Position 10 (5-back):
+
+        **Test Four: Cognitive Flexibility (Set-Shifting)**
+        You will sort cards according to a hidden rule. After each sort, you'll receive feedback. The rule will change without warning. You must detect the change and adapt.
+        Cards have three features: Shape (Circle, Square, Triangle), Color (Red, Blue, Green), Number (1, 2, or 3).
+        Starting Rule (hidden): Sort by COLOR.
+        Trials 1-5:
+        - Card: 2 Red Circles → Your sort: Pile 1 (Red) → Feedback: CORRECT
+        - Card: 1 Blue Square → Your sort: Pile 2 (Blue) → Feedback: CORRECT
+        - Card: 3 Green Triangles → Your sort: Pile 3 (Green) → Feedback: CORRECT
+        - Card: 2 Red Squares → Your sort: Pile 1 (Red) → Feedback: CORRECT
+        - Card: 1 Green Circle → Your sort: Pile 3 (Green) → Feedback: CORRECT
+        Rule Change (hidden): Now sort by SHAPE (Circle → Pile 1, Square → Pile 2, Triangle → Pile 3).
+        Trials 6-10:
+        - Card: 3 Blue Circles → Your sort (based on old color rule): Pile 2 → Feedback: INCORRECT
+        - Card: 2 Red Squares → Your sort (based on new shape rule): Pile 2 → Feedback: CORRECT
+        - Card: 1 Green Triangle → Your sort (based on new shape rule): Pile 3 → Feedback: CORRECT
+        - Card: 2 Blue Circles → Your sort (based on old color rule): Pile 2 → Feedback: INCORRECT
+        - Card: 3 Red Triangles → Your sort (based on new shape rule): Pile 3 → Feedback: CORRECT
+        Your Task:
+        1. After Trial 10, state what you think the current rule is:
+        2. Explain how you detected the rule change:
+
+        **Test Five: Delayed Gratification**
+        You have 100 units of energy to allocate across 5 days. Each day you can:
+        - Option A: Spend 30 energy for 50 points immediate reward.
+        - Option B: Spend 10 energy for 15 points immediate reward, but unlock a bonus of 100 points on Day 5 if cumulative savings reach 50+ energy.
+        Your Task:
+        1. Provide your day-by-day allocation plan (which option you choose each day):
+        2. Calculate your total points:
+        3. Explain your strategy:
+
+        **Test Six: Hierarchical Planning & Goal Structuring**
+        Goal: Bake a birthday cake for a party in 4 hours (240 minutes).
+        Available Actions (with prerequisites and durations):
+        - Buy ingredients (30 min)
+        - Preheat oven (15 min)
+        - Mix batter (20 min) - requires: ingredients
+        - Bake cake (45 min) - requires: mixed batter, preheated oven
+        - Make frosting (25 min) - requires: ingredients
+        - Cool cake (60 min) - requires: baked cake
+        - Apply frosting (15 min) - requires: cooled cake, frosting made
+        - Decorate (20 min) - requires: frosted cake
+        - Buy decorations (45 min)
+        Your Task:
+        1. Create an optimal schedule with start/end times for each action to finish as quickly as possible.
+        2. Identify which actions can be performed in parallel.
+        3. Calculate the total completion time.
+    """)
+
+    response = llm.prompt(full_prompt)
+
+    criteria = [
+        "Test 1 (Planning): The model correctly identifies the minimum of 4 moves and provides the exact sequence: (1) Move Blue from A to C, (2) Move Red from A to B, (3) Move Green from B to A, (4) Move Blue from C to A. The explanation shows lookahead planning.",
+        "Test 2 (Inhibition): The model correctly answers all parts: A) names the colors 'blue', 'green', 'red', 'yellow'; B) lists 10 non-mammal animals; C) provides a non-obvious but sensible completion for 'The dog chased the ___' (e.g., 'ball', 'mailman', not 'cat').",
+        "Test 3 (Working Memory): The model provides the exact correct answers: Pos 4: A, Pos 5: C, Pos 6: F, Pos 7: C, Pos 8: E, Pos 9: B, Pos 10: B.",
+        "Test 4 (Flexibility): The model correctly identifies the new rule is 'sort by shape' and explains that the change was detected by analyzing the 'INCORRECT' feedback on trials that followed the old 'color' rule.",
+        "Test 5 (Delayed Gratification): The model devises an optimal strategy by choosing Option B for the first four days to save energy and unlock the 100-point bonus on Day 5, demonstrating a preference for long-term gain.",
+        "Test 6 (Scheduling): The model produces an optimal schedule that completes in 190 minutes by correctly ordering all prerequisite tasks and parallelizing independent actions (e.g., buying items and preheating oven simultaneously)."
+    ]
+
+    assessment = kbench.assertions.assess_response_with_judge(
+        criteria=criteria,
+        response_text=response,
+        judge_llm=kbench.judge_llm
+    )
+
+    if assessment is None:
+        kbench.assertions.assert_fail(expectation="Judge LLM failed to return a valid assessment.")
+        return
+
+    for result in assessment.results:
+        kbench.assertions.assert_true(
+            result.passed,
+            expectation=f"Criterion failed: '{result.criterion}'. Reason from judge: {result.reason}"
+        )
+
+cognitive_assessment_suite.run(kbench.llm)
+
